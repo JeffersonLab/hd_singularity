@@ -1,9 +1,47 @@
 #!/bin/bash
-recipe=$1
-gluex_install_dir=$2
-gluex_prereqs_script=$3
 
-container_meta_dir=/beach/singularity/containers
+show_help() {
+    echo help is on the way
+}
+
+parse_command_line_options() {
+    local OPTIND opt
+    echo debug: parsing
+    while getopts "h?r:g:p:d:t:" opt; do
+	echo "before case"
+	case "$opt" in
+	    h|\?)
+		show_help
+		exit 0
+		;;
+	    r)  recipe=$OPTARG
+		echo building according to recipe $recipe
+		;;
+	    g)  gluex_install_dir=$OPTARG
+		;;
+	    p)  gluex_prereqs_script=$OPTARG
+		;;
+	    d)  container_meta_dir=$OPTARG
+		;;
+	    t)  dist_token=$OPTARG
+		;;
+	esac
+    done
+    shift $((OPTIND-1))
+
+#    recipe=$1
+#    gluex_install_dir=$2
+    #    gluex_prereqs_script=$3
+    echo "done parsing"
+}
+
+parse_command_line_options "$@"
+
+if [ -z "$container_meta_dir" ]
+then
+    container_meta_dir=/tmp
+fi
+
 dist_token=`echo $recipe | awk -FSingularity. '{print $2}'`
 
 raw_sandbox=$container_meta_dir/$dist_token

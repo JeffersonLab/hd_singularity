@@ -1,7 +1,17 @@
 #!/bin/bash
 
 show_help() {
-    echo help is on the way
+    cat <<EOF
+Usage: create_gluex_container.sh [-h] -g FILE [-d DIRECTORY] [-t STRING] SINGULARITY_RECIPE_FILE
+
+Note: must be run as root
+
+Options:
+  -h print this usage message
+  -g script that installs gluex software
+  -d output directory for containers (default: current working directory)
+  -t token to be used to name containers (default = ext in "Singularity.ext")
+EOF
 }
 
 parse_command_line_options() {
@@ -33,7 +43,7 @@ quit/keep/overwrite? "
 	read -p "$prompt" qco
 	case $qco in
             [Qq]* ) exit 4;;
-            [Cc]* ) result=keep; break;;
+            [Kk]* ) result=keep; break;;
 	    [Oo]* ) rm -rf $file_in; result=build; break;;
 	    * ) echo "Please answer quit, keep, or overwrite";;
 	esac
@@ -53,7 +63,15 @@ then
     container_meta_dir=.
 fi
 
-dist_token=`echo $recipe | awk -FSingularity. '{print $2}'`
+if [ -z "$dist_token" ]
+then
+    if [ echo $dist_token | grep -l 'Singularity.' ]
+       then
+	   dist_token=`echo $recipe | awk -FSingularity. '{print $2}'`
+    else
+	dist_token=container
+    fi
+fi
 
 raw_sandbox=$container_meta_dir/$dist_token
 gluex_sandbox=$container_meta_dir/gluex_$dist_token
@@ -70,7 +88,8 @@ then
     singularity build --sandbox $raw_sandbox $recipe
 fi
 
-if [ ! -f $gluex_prereqs_script ]
+ls -l $gluex_prereqs_script
+if [[ -z $gluex_prereqs_script || ! -f $gluex_prereqs_script ]]
 then
     echo ERROR: gluex software install script $gluex_prereqs_script not found
     exit 3

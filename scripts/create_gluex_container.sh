@@ -2,13 +2,14 @@
 
 show_help() {
     cat <<EOF
-Usage: create_gluex_container.sh [-h] -g FILE [-d DIRECTORY] [-t STRING] SINGULARITY_RECIPE_FILE
+Usage: create_gluex_container.sh [-h] -r <recipe-file> -p <prereqs-script> [-d DIRECTORY] [-t STRING]
 
 Note: must be run as root
 
 Options:
   -h print this usage message
-  -g script that installs gluex software
+  -r Singularity recipe file
+  -p script that installs gluex software
   -d output directory for containers (default: current working directory)
   -t token to be used to name containers (default = ext in "Singularity.ext")
 EOF
@@ -16,13 +17,15 @@ EOF
 
 parse_command_line_options() {
     local OPTIND opt
-    while getopts "h?g:d:t:" opt; do
+    while getopts "h?r:p:d:t:" opt; do
 	case "$opt" in
 	    h|\?)
 		show_help
 		exit 0
 		;;
-	    g)  gluex_prereqs_script=$OPTARG
+	    r)  recipe=$OPTARG
+		;;
+	    p)  prereqs_script=$OPTARG
 		;;
 	    d)  container_meta_dir=$OPTARG
 		;;
@@ -31,10 +34,9 @@ parse_command_line_options() {
 	esac
     done
     shift $((OPTIND-1))
-    recipe=$1
 }
 
-file_found_action() {
+file_found_action() { # call this when the container already exists
     prompt_in=$1
     file_in=$2
     prompt="$prompt_in
@@ -52,10 +54,28 @@ quit/keep/overwrite? "
 
 parse_command_line_options "$@"
 
+if [ -z $recipe ]
+then
+    echo ERROR: recipe file argument missing
+    exit 4
+fi
+
 if [ ! -f $recipe ]
 then
     echo ERROR: recipe file $recipe not found
     exit 2
+fi
+
+if [ -z $prereqs_script ]
+then
+    echo ERROR: prerequisite script missing \(-p option missing\)
+    exit 5
+fi
+	  
+if [ ! -f $prereqs_script ]
+then
+    echo ERROR: prerequisite script $prereqs_script not found
+    exit 3
 fi
 
 if [ -z "$container_meta_dir" ]
@@ -65,12 +85,19 @@ fi
 
 if [ -z "$dist_token" ]
 then
-    if [ echo $dist_token | grep -l 'Singularity.' ]
-       then
-	   dist_token=`echo $recipe | awk -FSingularity. '{print $2}'`
+    recipe_base=`basename $recipe`
+    if [[ $recipe_base =~ ^Singularity\. ]]
+    then
+	dist_token=`echo $recipe_base | awk -FSingularity\. '{print $2}'`
     else
 	dist_token=container
     fi
+fi
+
+if [ $USER != root ]
+then
+    echo ERROR: must be run as root
+    exit 6
 fi
 
 raw_sandbox=$container_meta_dir/$dist_token
@@ -85,14 +112,11 @@ fi
 if [ $result == build ]
 then
     echo INFO: building sandbox container $raw_sandbox according to $recipe
-    singularity build --sandbox $raw_sandbox $recipe
-fi
-
-ls -l $gluex_prereqs_script
-if [[ -z $gluex_prereqs_script || ! -f $gluex_prereqs_script ]]
-then
-    echo ERROR: gluex software install script $gluex_prereqs_script not found
-    exit 3
+    if ! singularity build --sandbox $raw_sandbox $recipe
+    then
+	echo ERROR: error building $raw_sandbox
+	exit 7
+    fi
 fi
 
 result=build
@@ -106,9 +130,9 @@ then
    cp -pr $raw_sandbox $gluex_sandbox
    echo INFO: creating /gluex_install mount point in $gluex_sandbox
    singularity exec --writable $gluex_sandbox mkdir /gluex_install
-   echo INFO: installing gluex software into $gluex_sandbox using $gluex_prereqs_script
-   gpbase=`basename $gluex_prereqs_script`
-   gpdir=`dirname $gluex_prereqs_script`
+   echo INFO: installing gluex software into $gluex_sandbox using $prereqs_script
+   gpbase=`basename $prereqs_script`
+   gpdir=`dirname $prereqs_script`
    singularity exec --bind $gpdir:/gluex_install --writable $gluex_sandbox /gluex_install/$gpbase
 fi
 

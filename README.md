@@ -5,10 +5,14 @@ Contains scripts and recipes for creating Singularity containers from scratch.
 
 The main script is scripts/create_gluex_container.sh. Its usage message is as follows:
 
-    Usage: create_gluex_container.sh [-h] -g FILE [-d DIRECTORY] [-t STRING] SINGULARITY_RECIPE_FILE
+    Usage: create_gluex_container.sh [-h] -r <recipe-file> -p <prereqs-script> \
+           [-d DIRECTORY] [-t STRING]
+
     Note: must be run as root
+
     Options:
       -h print this usage message
-      -g script that installs gluex software
+      -r Singularity recipe file
+      -p script that installs gluex software
       -d output directory for containers (default: current working directory)
-      -t token to be used to name containers (default = ext in "Singularity.ext")
+      -t token to be used to name containers (default = extension in "Singularity.ext")

@@ -71,6 +71,12 @@ then
     echo ERROR: prerequisite script missing \(-p option missing\)
     exit 5
 fi
+
+gpbase=`basename $prereqs_script`
+gpdir=`dirname $prereqs_script`
+if [ -z $gpdir ] # if no directory in prereq script
+then # clone and use the latest version of gluex_install
+fi
 	  
 if [ ! -f $prereqs_script ]
 then
@@ -88,7 +94,8 @@ then
     recipe_base=`basename $recipe`
     if [[ $recipe_base =~ ^Singularity\. ]]
     then
-	dist_token=`echo $recipe_base | awk -FSingularity\. '{print $2}'`
+	recipe_tag=`echo $recipe_base | awk -FSingularity\. '{print $2}'`
+	dist_token=${recipe_tag}_${singularity_version_tag}_${gluex_install_version_tag}
     else
 	dist_token=container
     fi
@@ -131,8 +138,6 @@ then
    echo INFO: creating /gluex_install mount point in $gluex_sandbox
    singularity exec --writable $gluex_sandbox mkdir /gluex_install
    echo INFO: installing gluex software into $gluex_sandbox using $prereqs_script
-   gpbase=`basename $prereqs_script`
-   gpdir=`dirname $prereqs_script`
    singularity exec --bind $gpdir:/gluex_install --writable $gluex_sandbox /gluex_install/$gpbase
 fi
 

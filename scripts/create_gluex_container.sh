@@ -36,20 +36,24 @@ parse_command_line_options() {
     shift $((OPTIND-1))
 }
 
-file_found_action() { # call this when the container already exists
+check_for_file_existence() { # call this when the container already exists
     prompt_in=$1
     file_in=$2
     prompt="$prompt_in
 quit/keep/overwrite? "
-    while true; do
-	read -p "$prompt" qco
-	case $qco in
-            [Qq]* ) exit 4;;
-            [Kk]* ) result=keep; break;;
-	    [Oo]* ) rm -rf $file_in; result=build; break;;
-	    * ) echo "Please answer quit, keep, or overwrite";;
-	esac
-    done
+    result=build # default output
+    if [ -e $file_in ]
+    then
+	while true; do
+	    read -p "$prompt" qco
+	    case $qco in
+		[Qq]* ) exit 0;;
+		[Kk]* ) result=keep; break;;
+		[Oo]* ) rm -rf $file_in; result=build; break;;
+		* ) echo "Please answer quit, keep, or overwrite";;
+	    esac
+	done
+    fi
 }
 
 parse_command_line_options "$@"
@@ -57,7 +61,7 @@ parse_command_line_options "$@"
 if [ -z $recipe ]
 then
     echo ERROR: recipe file argument missing
-    exit 4
+    exit 9
 fi
 
 if [ ! -f $recipe ]
@@ -104,11 +108,7 @@ raw_sandbox=$container_meta_dir/$dist_token
 gluex_sandbox=$container_meta_dir/gluex_$dist_token
 gluex_sif=$container_meta_dir/gluex_$dist_token.sif
 
-result=build
-if [ -d $raw_sandbox ]
-then
-    file_found_action "raw sandbox $raw_sandbox exists" $raw_sandbox
-fi
+check_for_file_existence "raw sandbox $raw_sandbox exists" $raw_sandbox
 if [ $result == build ]
 then
     echo INFO: building sandbox container $raw_sandbox according to $recipe
@@ -117,13 +117,15 @@ then
 	echo ERROR: error building $raw_sandbox
 	exit 7
     fi
+elif [ $result == keep ]
+then
+    echo INFO: keeping $raw_sandbox
+else
+    echo ERROR: this cannot happen
+    exit 10
 fi
 
-result=build
-if [ -d $gluex_sandbox ]
-then
-    file_found_action "gluex sandbox $gluex_sandbox exists" $gluex_sandbox
-fi
+check_for_file_existence "gluex sandbox $gluex_sandbox exists" $gluex_sandbox
 if [ $result == build ]
 then
    echo INFO: copying $raw_sandbox to $gluex_sandbox
@@ -133,17 +135,35 @@ then
    echo INFO: installing gluex software into $gluex_sandbox using $prereqs_script
    gpbase=`basename $prereqs_script`
    gpdir=`dirname $prereqs_script`
-   singularity exec --bind $gpdir:/gluex_install --writable $gluex_sandbox /gluex_install/$gpbase
+   if ! singularity exec --bind $gpdir:/gluex_install --writable $gluex_sandbox /gluex_install/$gpbase
+   then
+       echo ERROR: error installing software into $gluex_sandbox
+       exit 1
+   fi
+elif [ $result == keep ]
+then
+    echo INFO: keeping $gluex_sandbox
+else
+    echo ERROR: this cannot happen
+    exit 4
 fi
 
-result=build
-if [ -f $gluex_sif ]
-then
-    file_found_action "gluex simg $gluex_sif exists" $gluex_sif
-fi
+check_for_file_existence "gluex simg $gluex_sif exists" $gluex_sif
 if [ $result == build ]
 then
     echo INFO: build squashfs sandbox $gluex_sif from $gluex_sandbox
-    singularity build $gluex_sif $gluex_sandbox
+    if ! singularity build $gluex_sif $gluex_sandbox
+    then
+	echo ERROR: error creating squashfs container $gluex_sif
+	exit 8
+    fi
+elif [ $result == keep ]
+then
+    echo INFO: keeping $gluex_sif
+else
+    echo ERROR: this cannot happen
+    exit 11
 fi
 
+echo INFO: done
+exit 0

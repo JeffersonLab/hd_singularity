@@ -74,13 +74,24 @@ fi
 
 gpbase=`basename $prereqs_script`
 gpdir=`dirname $prereqs_script`
-if [ -z $gpdir ] # if no directory in prereq script
-then # clone and use the latest version of gluex_install
+if [ $gpdir == "." ] # if no directory in prereq script
+then # get latest version of gluex_install and find the script there
+    gi_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
+    gluex_install_version_tag=_gi$gi_version
+    tempdir=/tmp/$RANDOM
+    mkdir -p $tempdir
+    pushd $tempdir > /dev/null
+    wget --no-verbose --no-check-certificate -O $gi_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gi_version.tar.gz
+    tar zxf $gi_version.tar.gz
+    gpdir=$tempdir/gluex_install-$gi_version
+    popd > /dev/null
+else
+    gluex_install_version_tag=""
 fi
 	  
-if [ ! -f $prereqs_script ]
+if [ ! -f $gpdir/$gpbase ]
 then
-    echo ERROR: prerequisite script $prereqs_script not found
+    echo ERROR: prerequisite script $gpdir/$gpbase not found
     exit 3
 fi
 
@@ -95,7 +106,8 @@ then
     if [[ $recipe_base =~ ^Singularity\. ]]
     then
 	recipe_tag=`echo $recipe_base | awk -FSingularity\. '{print $2}'`
-	dist_token=${recipe_tag}_${singularity_version_tag}_${gluex_install_version_tag}
+	singularity_version_tag=`singularity --version | awk '{print $3}' | awk -F- '{print $1}' | awk -F. '{print "_sy"$1"."$2}'`
+	dist_token=${recipe_tag}${singularity_version_tag}${gluex_install_version_tag}
     else
 	dist_token=container
     fi

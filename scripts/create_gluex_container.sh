@@ -80,14 +80,14 @@ gpbase=`basename $prereqs_script`
 gpdir=`dirname $prereqs_script`
 if [ $gpdir == "." ] # if no directory in prereq script
 then # get latest version of gluex_install and find the script there
-    gi_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
-    gluex_install_version_tag=_gi$gi_version
+    gin_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
+    gluex_install_version_tag=_gin$gin_version
     tempdir=/tmp/$RANDOM
     mkdir -p $tempdir
     pushd $tempdir > /dev/null
-    wget --no-verbose --no-check-certificate -O $gi_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gi_version.tar.gz
-    tar zxf $gi_version.tar.gz
-    gpdir=$tempdir/gluex_install-$gi_version
+    wget --no-verbose --no-check-certificate -O $gin_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gin_version.tar.gz
+    tar zxf $gin_version.tar.gz
+    gpdir=$tempdir/gluex_install-$gin_version
     popd > /dev/null
 else
     gluex_install_version_tag=""
@@ -110,7 +110,7 @@ then
     if [[ $recipe_base =~ ^Singularity\. ]]
     then
 	recipe_tag=`echo $recipe_base | awk -FSingularity\. '{print $2}'`
-	singularity_version_tag=`singularity --version | awk '{print $3}' | awk -F- '{print $1}' | awk -F. '{print "_sy"$1"."$2}'`
+	singularity_version_tag=`singularity --version | awk '{print $3}' | awk -F- '{print $1}' | awk -F. '{print "_sng"$1"."$2}'`
 	dist_token=${recipe_tag}${singularity_version_tag}${gluex_install_version_tag}
     else
 	dist_token=container

@@ -40,7 +40,7 @@ check_for_file_existence() { # call this when the container already exists
     prompt_in=$1
     file_in=$2
     prompt="$prompt_in
-quit/keep/overwrite? "
+--> quit/keep/overwrite? "
     result=build # default output
     if [ -e $file_in ]
     then
@@ -80,14 +80,14 @@ gpbase=`basename $prereqs_script`
 gpdir=`dirname $prereqs_script`
 if [ $gpdir == "." ] # if no directory in prereq script
 then # get latest version of gluex_install and find the script there
-    gin_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
-    gluex_install_version_tag=_gin$gin_version
+    gxi_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
+    gluex_install_version_tag=_gxi$gxi_version
     tempdir=/tmp/$RANDOM
     mkdir -p $tempdir
     pushd $tempdir > /dev/null
-    wget --no-verbose --no-check-certificate -O $gin_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gin_version.tar.gz
-    tar zxf $gin_version.tar.gz
-    gpdir=$tempdir/gluex_install-$gin_version
+    wget --no-verbose --no-check-certificate -O $gxi_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gxi_version.tar.gz
+    tar zxf $gxi_version.tar.gz
+    gpdir=$tempdir/gluex_install-$gxi_version
     popd > /dev/null
 else
     gluex_install_version_tag=""

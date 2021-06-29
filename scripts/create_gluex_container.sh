@@ -2,16 +2,18 @@
 
 show_help() {
     cat <<EOF
-Usage: create_gluex_container.sh [-h] -r <recipe-file> -p <prereqs-script> [-d DIRECTORY] [-t STRING]
+Usage: create_gluex_container.sh [-h] -r <recipe-file> [-p <prereqs-script>] \\
+                                 [-d DIRECTORY] [-t STRING]
 
 Note: must be run as root
 
 Options:
   -h print this usage message
   -r Singularity recipe file
-  -p script that installs gluex software
+  -p script that installs gluex software (if omitted, user is shown a menu)
   -d output directory for containers (default: current working directory)
-  -t token to be used to name containers (default = ext in "Singularity.ext")
+  -t token to be used to name containers (default = "ext" in name of recipe
+     file "Singularity.ext")
 EOF
 }
 
@@ -56,6 +58,22 @@ check_for_file_existence() { # call this when the container already exists
     fi
 }
 
+prompt_user_for_prereqs_script() {
+    gxi_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
+    gluex_install_version_tag=_gxi$gxi_version
+    tempdir=/tmp/$RANDOM
+    mkdir -p $tempdir
+    pushd $tempdir > /dev/null
+    wget --no-verbose --no-check-certificate -O $gxi_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gxi_version.tar.gz
+    tar zxf $gxi_version.tar.gz
+    gpdir=$tempdir/gluex_install-$gxi_version
+    cd $gpdir
+    ls gluex_prereqs_*.sh
+    read -p "enter name of prequisite script: " gpbase
+    prereqs_script=$gpdir/$gpbase
+    popd > /dev/null
+}
+
 parse_command_line_options "$@"
 
 if [ -z $recipe ]
@@ -72,28 +90,10 @@ fi
 
 if [ -z $prereqs_script ]
 then
-    echo ERROR: prerequisite script missing \(-p option missing\)
-    exit 5
-fi
-
-gpbase=`basename $prereqs_script`
-gpdir=`dirname $prereqs_script`
-if [ $gpdir == "." ] # if no directory in prereq script
-then # get latest version of gluex_install and find the script there
-    gxi_version=`curl --silent "https://api.github.com/repos/jeffersonlab/gluex_install/releases/latest" | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/'`
-    gluex_install_version_tag=_gxi$gxi_version
-    tempdir=/tmp/$RANDOM
-    mkdir -p $tempdir
-    pushd $tempdir > /dev/null
-    wget --no-verbose --no-check-certificate -O $gxi_version.tar.gz https://github.com/JeffersonLab/gluex_install/archive/$gxi_version.tar.gz
-    tar zxf $gxi_version.tar.gz
-    gpdir=$tempdir/gluex_install-$gxi_version
-    popd > /dev/null
-else
-    gluex_install_version_tag=""
+    prompt_user_for_prereqs_script
 fi
 	  
-if [ ! -f $gpdir/$gpbase ]
+if [ ! -f $prereqs_script ]
 then
     echo ERROR: prerequisite script $gpdir/$gpbase not found
     exit 3

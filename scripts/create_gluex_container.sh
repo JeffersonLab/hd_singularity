@@ -91,6 +91,9 @@ fi
 if [ -z $prereqs_script ]
 then
     prompt_user_for_prereqs_script
+else
+    gpdir=`dirname $prereqs_script`
+    gpbase=`basename $prereqs_script`
 fi
 	  
 if [ ! -f $prereqs_script ]
